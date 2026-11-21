@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chatter Academy | Recruiter Login</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      background: #0b0f14;
+      color: #f1f5f9;
+      font-family: Inter, Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .login-container {
+      width: 100%;
+      max-width: 420px;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+
+    .brand-mark {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #7c3aed, #4f46e5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 24px;
+      font-weight: bold;
+    }
+
+    .brand h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .brand p {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+
+    .card {
+      background: #151b23;
+      border: 1px solid #273241;
+      border-radius: 16px;
+      padding: 30px;
+    }
+
+    .card h2 {
+      font-size: 21px;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 26px;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      border: 1px solid #334155;
+      border-radius: 9px;
+      background: #0b1118;
+      color: white;
+      margin-bottom: 18px;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: #8b5cf6;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #7c3aed;
+      border: none;
+      border-radius: 9px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 5px;
+    }
+
+    button:hover {
+      background: #6d28d9;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+
+    .error {
+      background: #3b171b;
+      color: #fca5a5;
+      border: 1px solid #7f1d1d;
+    }
+
+    .success {
+      background: #123321;
+      color: #86efac;
+      border: 1px solid #166534;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 24px;
+      color: #64748b;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="login-container">
+
+    <div class="brand">
+      <div class="brand-mark">CA</div>
+      <h1>Chatter Academy</h1>
+      <p>Recruiter Portal</p>
+    </div>
+
+    <div class="card">
+      <h2>Welcome back</h2>
+      <p class="subtitle">Sign in to access the recruiter dashboard.</p>
+
+      <form id="loginForm">
+
+        <label for="email">Email address</label>
+        <input
+          type="email"
+          id="email"
+          placeholder="you@example.com"
+          required
+          autocomplete="email"
+        >
+
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          placeholder="Your password"
+          required
+          autocomplete="current-password"
+        >
+
+        <button id="loginButton" type="submit">
+          Sign in
+        </button>
+
+      </form>
+
+      <div id="message" class="message"></div>
+    </div>
+
+    <div class="footer">
+      Chatter Academy · Recruiter Access
+    </div>
+
+  </div>
+
+  <script>
+    const config = window.CHATTER_SUPABASE;
+
+    const supabase = window.supabase.createClient(
+      config.url,
+      config.anonKey
+    );
+
+    const form = document.getElementById("loginForm");
+    const button = document.getElementById("loginButton");
+    const message = document.getElementById("message");
+
+    function showMessage(text, type) {
+      message.textContent = text;
+      message.className = "message " + type;
+      message.style.display = "block";
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      button.disabled = true;
+      button.textContent = "Signing in...";
+      message.style.display = "none";
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        showMessage("Login successful. Redirecting...", "success");
+
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 800);
+
+      } catch (error) {
+        showMessage(
+          error.message || "Login failed. Please check your credentials.",
+          "error"
+        );
+
+        button.disabled = false;
+        button.textContent = "Sign in";
+      }
+    });
+
+    // Check whether an existing session is active
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) {
+        window.location.href = "index.html";
+      }
+    });
+  </script>
+
+</body>
+</html>
