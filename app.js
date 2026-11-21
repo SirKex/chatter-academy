@@ -25,4 +25,4 @@ resetScenario('rapport',false);
 $('#chat-form').addEventListener('submit',e=>{e.preventDefault();const input=$('#chat-input'),text=input.value.trim();if(!text)return;const candidate={id:`m${scenarioState.nextId++}`,role:'candidate',text};transcript.push(candidate);addMessage(text,true,candidate.id);input.value='';$('#typing').style.visibility='visible';setTimeout(()=>{const response=ScenarioRuntime.respond(scenarioState,text);turn++;$('#typing').style.visibility='hidden';addMessage(response.text,false,response.id);transcript.push(response);renderScore(CompetencyEngine.evaluate(transcript,{scenario:scenarioState.key}));},350);});
 $('#reset-chat').addEventListener('click',()=>resetScenario($('#focus-select').value));
 $('#focus-select').addEventListener('change',e=>resetScenario(e.target.value));
-$('#personality-select').addEventListener('change',e=>{const data={luna:['Luna','luna'],maya:['Maya','maya'],riley:['Riley','riley']}[e.target.value];$('#creator-name').textContent=data[0];$('.chat-header .avatar').textContent=data[0][0];$('.chat-header .avatar').className=`avatar creator ${data[1]}`;toast(`${data[0]} personality loaded`);});
+
