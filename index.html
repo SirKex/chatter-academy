@@ -6,6 +6,25 @@
   <meta name="description" content="Chatter Academy recruiter assessment workspace" />
   <title>Chatter Academy</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <style>body{visibility:hidden}</style>
+  <script>
+    window.dashboardAuth = window.supabase.createClient(
+      window.CHATTER_SUPABASE.url,
+      window.CHATTER_SUPABASE.anonKey
+    );
+    window.dashboardAuth.auth.getSession().then(({data, error}) => {
+      if (error || !data.session) {
+        window.location.replace("recruiter-login.html");
+        return;
+      }
+      document.documentElement.dataset.authenticated = "true";
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", () => { document.body.style.visibility = "visible"; }, {once:true});
+      } else { document.body.style.visibility = "visible"; }
+    }).catch(() => window.location.replace("recruiter-login.html"));
+  </script>
 </head>
 <body>
   <div class="app-shell">
@@ -26,7 +45,7 @@
     </aside>
 
     <main class="main-content">
-      <header class="topbar"><div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="page-title">Overview</strong></div><div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<i></i></button><button class="outline-button" id="new-assessment">＋ New assessment</button></div></header>
+      <header class="topbar"><div class="breadcrumbs"><span>Workspace</span><b>/</b><strong id="page-title">Overview</strong></div><div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<i></i></button><button class="outline-button" id="new-assessment">＋ New assessment</button><button class="outline-button" id="logout-button" type="button">Log out</button></div></header>
       <div id="view-overview" class="view active-view"><div class="candidate-alert admin-demo-banner"><b>DEMO WORKSPACE</b> · Dashboard figures and sample candidate records are illustrative, not real recruitment data. Candidate assessment submissions are not yet connected to a secure database.</div>
         <section class="welcome"><div><p class="eyebrow">THURSDAY, NOVEMBER 20, 2026</p><h1>Good morning, Jordan <span>✦</span></h1><p class="subhead">Here’s what’s happening across your recruitment pipeline.</p></div><button class="date-button">Last 30 days <span>⌄</span></button></section>
         <section class="metrics"><article class="metric-card"><div class="metric-top"><span class="metric-icon lavender">♙</span><span class="trend up">↗ 12.5%</span></div><strong>48</strong><span>Active candidates</span><small>vs. 42 last month</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon mint">◉</span><span class="trend up">↗ 8.2%</span></div><strong>84%</strong><span>Average score</span><small>vs. 79% last month</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon peach">▤</span><span class="trend down">↘ 3.1%</span></div><strong>23</strong><span>Assessments completed</span><small>vs. 27 last month</small></article><article class="metric-card"><div class="metric-top"><span class="metric-icon blue">◷</span><span class="trend neutral">— 0.0%</span></div><strong>4.2 days</strong><span>Avg. time to complete</span><small>vs. 4.2 days last month</small></article></section>
@@ -38,4 +57,13 @@
       <div id="view-personalities" class="view"><section class="simulator-header"><div><p class="eyebrow">CONFIGURATION</p><h1>Creator personalities</h1><p class="subhead">Tune the voices candidates practice with.</p></div><button class="outline-button">＋ New personality</button></section><section class="personality-grid"><article class="personality-card selected"><div class="personality-cover luna-cover"><span class="avatar creator large">L</span><span class="live-tag">● Active</span></div><div class="personality-body"><div class="card-title"><h2>Luna</h2><span>⋮</span></div><p>Playful, curious, and emotionally intelligent. Rewards genuine conversation.</p><div class="tag-row"><span>Playful</span><span>Warm</span><span>Boundaries</span></div><button class="full-button" data-view-target="simulator">Test personality →</button></div></article><article class="personality-card"><div class="personality-cover maya-cover"><span class="avatar creator large maya">M</span></div><div class="personality-body"><div class="card-title"><h2>Maya</h2><span>⋮</span></div><p>Affectionate and attentive with a strong girlfriend-experience style.</p><div class="tag-row"><span>Affectionate</span><span>Attentive</span></div><button class="full-button">Edit personality</button></div></article><article class="personality-card"><div class="personality-cover riley-cover"><span class="avatar creator large riley">R</span></div><div class="personality-body"><div class="card-title"><h2>Riley</h2><span>⋮</span></div><p>Confident, direct, and premium-minded. Tests value framing and poise.</p><div class="tag-row"><span>Direct</span><span>Premium</span></div><button class="full-button">Edit personality</button></div></article></section></div>
     </main>
   </div><div class="toast" id="toast" role="status"></div><script src="assessment-model.js"></script><script src="text-utils.js"></script><script src="scenario-definitions.js"></script><script src="scenario-runtime.js"></script><script src="evaluation-pipeline.js"></script><script src="scoring.js"></script><script src="critical-flags.js"></script><script src="competency-engine.js"></script><script src="scorer-adapter.js"></script><script src="app.js"></script>
+<script>
+  document.getElementById("logout-button")?.addEventListener("click", async () => {
+    const button = document.getElementById("logout-button");
+    button.disabled = true;
+    button.textContent = "Signing out...";
+    await window.dashboardAuth.auth.signOut();
+    window.location.replace("recruiter-login.html");
+  });
+</script>
 </body></html>
