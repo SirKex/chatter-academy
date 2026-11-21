@@ -65,6 +65,23 @@
       color: #888;
       overflow-wrap: anywhere;
     }
+
+    /* Invitation modal */
+    #invite-modal { display:none; position:fixed; inset:0; z-index:10000; background:rgba(10,12,20,.55); align-items:center; justify-content:center; padding:20px; }
+    #invite-modal .invite-card { width:min(520px,100%); background:#fff; border-radius:18px; padding:26px; box-shadow:0 24px 80px rgba(0,0,0,.22); color:#202238; }
+    #invite-modal h2 { margin:0 0 8px; }
+    #invite-modal p { color:#74758a; margin:0 0 20px; line-height:1.5; }
+    #invite-modal label { display:block; font-size:13px; font-weight:600; margin:14px 0 7px; }
+    #invite-modal input, #invite-modal select { width:100%; padding:12px; border:1px solid #d8d9e5; border-radius:9px; background:#fff; color:#222; }
+    #invite-modal .invite-actions { display:flex; gap:10px; margin-top:20px; }
+    #invite-modal button { border:0; border-radius:9px; padding:11px 15px; cursor:pointer; font-weight:600; }
+    #invite-submit { background:#7769e8; color:white; flex:1; }
+    #invite-cancel { background:#f0f1f6; color:#34344b; }
+    #invite-status { display:none; margin-top:15px; padding:12px; border-radius:9px; font-size:13px; white-space:pre-wrap; }
+    #invite-status.error { display:block; background:#fff0f0; color:#a12626; }
+    #invite-status.success { display:block; background:#ecfdf3; color:#166534; }
+    #invite-result-link { display:none; width:100%; margin-top:12px; padding:10px; border:1px solid #d8d9e5; border-radius:8px; }
+    #invite-copy { display:none; margin-top:10px; background:#e9e7ff; color:#5144c6; }
   </style>
 </head>
 
@@ -821,6 +838,33 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
+  <!-- Create invitation modal -->
+  <div id="invite-modal" role="dialog" aria-modal="true" aria-labelledby="invite-title">
+    <div class="invite-card">
+      <h2 id="invite-title">Create candidate invitation</h2>
+      <p>Generate a secure, unique assessment link. The invitation expires in 14 days.</p>
+      <form id="invite-form">
+        <label for="invite-name">Candidate name</label>
+        <input id="invite-name" name="name" required maxlength="100" autocomplete="name" placeholder="Full name">
+        <label for="invite-email">Candidate email</label>
+        <input id="invite-email" name="email" required type="email" autocomplete="email" placeholder="candidate@example.com">
+        <label for="invite-scenario">Assessment scenario</label>
+        <select id="invite-scenario" name="scenarioId" required>
+          <option value="rapport_building">Rapport &amp; conversation building</option>
+          <option value="sales_conversion">Sales &amp; PPV conversion</option>
+          <option value="objection_handling">Objection handling</option>
+        </select>
+        <div id="invite-status" role="status"></div>
+        <input id="invite-result-link" readonly aria-label="Generated candidate invitation link">
+        <button id="invite-copy" type="button">Copy invitation link</button>
+        <div class="invite-actions">
+          <button id="invite-cancel" type="button">Cancel</button>
+          <button id="invite-submit" type="submit">Create invitation</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
 
   <!-- Dashboard scripts -->
   <script src="assessment-model.js"></script>
@@ -961,6 +1005,86 @@
 
       }
 
+    })();
+
+
+    // Candidate invitation workflow
+    (() => {
+      const modal = document.getElementById("invite-modal");
+      const form = document.getElementById("invite-form");
+      const submit = document.getElementById("invite-submit");
+      const status = document.getElementById("invite-status");
+      const linkField = document.getElementById("invite-result-link");
+      const copyButton = document.getElementById("invite-copy");
+      const scenarioSelect = document.getElementById("invite-scenario");
+
+      function openModal() {
+        modal.style.display = "flex";
+        status.className = ""; status.textContent = "";
+        linkField.style.display = "none"; linkField.value = "";
+        copyButton.style.display = "none";
+        document.getElementById("invite-name").focus();
+      }
+      function closeModal() { modal.style.display = "none"; }
+      function showStatus(text, type) { status.textContent = text; status.className = type; }
+
+      document.getElementById("new-assessment")?.addEventListener("click", openModal);
+      document.getElementById("invite-button")?.addEventListener("click", openModal);
+      document.getElementById("invite-cancel")?.addEventListener("click", closeModal);
+      modal.addEventListener("click", (event) => { if (event.target === modal) closeModal(); });
+      document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal.style.display === "flex") closeModal(); });
+
+      copyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(linkField.value);
+          copyButton.textContent = "Copied!";
+          setTimeout(() => copyButton.textContent = "Copy invitation link", 1800);
+        } catch {
+          linkField.focus(); linkField.select(); document.execCommand("copy");
+          copyButton.textContent = "Copy attempted";
+        }
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        submit.disabled = true; submit.textContent = "Creating...";
+        status.className = ""; status.textContent = "";
+        linkField.style.display = "none"; copyButton.style.display = "none";
+        try {
+          const { data: sessionData, error: sessionError } = await window.dashboardAuth.auth.getSession();
+          if (sessionError) throw sessionError;
+          const token = sessionData?.session?.access_token;
+          if (!token) throw new Error("Your recruiter session is missing. Please log in again.");
+          const cfg = window.CHATTER_SUPABASE;
+          const response = await fetch(`${cfg.url}/functions/v1/create-invite`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "apikey": cfg.anonKey,
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              name: document.getElementById("invite-name").value.trim(),
+              email: document.getElementById("invite-email").value.trim(),
+              scenarioId: scenarioSelect.value
+            })
+          });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok || !result.success || !result.candidateUrl) {
+            throw new Error(result.error || `Invitation creation failed (${response.status}).`);
+          }
+          showStatus("Invitation created successfully. Copy the link and send it to the candidate.", "success");
+          linkField.value = result.candidateUrl; linkField.style.display = "block";
+          copyButton.style.display = "inline-block";
+          submit.textContent = "Create another";
+          form.reset();
+        } catch (error) {
+          showStatus(error.message || "Could not create invitation.", "error");
+        } finally {
+          submit.disabled = false;
+          if (submit.textContent === "Creating...") submit.textContent = "Create invitation";
+        }
+      });
     })();
 
     // Logout button
