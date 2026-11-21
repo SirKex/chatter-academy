@@ -8,23 +8,15 @@
   <link rel="stylesheet" href="styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <style>body{visibility:hidden}</style>
-  <script>
-    window.dashboardAuth = window.supabase.createClient(
-      window.CHATTER_SUPABASE.url,
-      window.CHATTER_SUPABASE.anonKey
-    );
-    window.dashboardAuth.auth.getSession().then(({data, error}) => {
-      if (error || !data.session) {
-        window.location.replace("recruiter-login.html");
-        return;
-      }
-      document.documentElement.dataset.authenticated = "true";
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", () => { document.body.style.visibility = "visible"; }, {once:true});
-      } else { document.body.style.visibility = "visible"; }
-    }).catch(() => window.location.replace("recruiter-login.html"));
-  </script>
+  <style>
+    body { visibility: hidden; }
+    #auth-gate { display:none; position:fixed; inset:0; z-index:99999; background:#f6f7fb; align-items:center; justify-content:center; padding:24px; font-family:inherit; }
+    #auth-gate .auth-card { max-width:460px; width:100%; background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:28px; box-shadow:0 18px 60px rgba(20,20,40,.12); }
+    #auth-gate h2 { margin:0 0 10px; color:#24233a; }
+    #auth-gate p { color:#66677a; line-height:1.55; margin:0 0 18px; }
+    #auth-gate a { display:inline-block; padding:11px 16px; border-radius:10px; background:#7769e8; color:white; text-decoration:none; font-weight:600; }
+    #auth-gate small { display:block; margin-top:14px; color:#888; overflow-wrap:anywhere; }
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -58,12 +50,63 @@
     </main>
   </div><div class="toast" id="toast" role="status"></div><script src="assessment-model.js"></script><script src="text-utils.js"></script><script src="scenario-definitions.js"></script><script src="scenario-runtime.js"></script><script src="evaluation-pipeline.js"></script><script src="scoring.js"></script><script src="critical-flags.js"></script><script src="competency-engine.js"></script><script src="scorer-adapter.js"></script><script src="app.js"></script>
 <script>
+  (async function protectDashboard() {
+    const showGate = (message) => {
+      document.body.style.visibility = "visible";
+      let gate = document.getElementById("auth-gate");
+      if (!gate) {
+        gate = document.createElement("div");
+        gate.id = "auth-gate";
+        gate.innerHTML = '<div class="auth-card"><h2>Recruiter sign-in required</h2><p id="auth-gate-message"></p><a href="recruiter-login.html">Go to recruiter login</a><small>Dashboard access is protected. If you just signed in, try opening the dashboard again.</small></div>';
+        document.body.appendChild(gate);
+      }
+      gate.querySelector("#auth-gate-message").textContent = message;
+      gate.style.display = "flex";
+    };
+
+    try {
+      if (!window.supabase || !window.CHATTER_SUPABASE || !window.CHATTER_SUPABASE.url || !window.CHATTER_SUPABASE.anonKey) {
+        showGate("Supabase configuration did not load correctly. Check supabase-config.js and reload the page.");
+        return;
+      }
+
+      window.dashboardAuth = window.supabase.createClient(
+        window.CHATTER_SUPABASE.url,
+        window.CHATTER_SUPABASE.anonKey,
+        { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+      );
+
+      const sessionResult = await Promise.race([
+        window.dashboardAuth.auth.getSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Session check timed out.")), 10000))
+      ]);
+
+      if (sessionResult.error) {
+        showGate("We could not verify your session: " + sessionResult.error.message);
+        return;
+      }
+      if (!sessionResult.data || !sessionResult.data.session) {
+        showGate("No active recruiter session was found in this browser. Please sign in first.");
+        return;
+      }
+
+      document.documentElement.dataset.authenticated = "true";
+      document.body.style.visibility = "visible";
+
+      window.dashboardAuth.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_OUT") showGate("Your session has ended. Please sign in again.");
+      });
+    } catch (err) {
+      showGate("Authentication check failed: " + (err?.message || "Unknown error"));
+    }
+  })();
+
   document.getElementById("logout-button")?.addEventListener("click", async () => {
     const button = document.getElementById("logout-button");
     button.disabled = true;
     button.textContent = "Signing out...";
-    await window.dashboardAuth.auth.signOut();
-    window.location.replace("recruiter-login.html");
+    try { await window.dashboardAuth.auth.signOut(); }
+    finally { window.location.replace("recruiter-login.html"); }
   });
 </script>
 </body></html>
