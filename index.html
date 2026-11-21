@@ -1035,13 +1035,22 @@
       document.addEventListener("keydown", (event) => { if (event.key === "Escape" && modal.style.display === "flex") closeModal(); });
 
       copyButton.addEventListener("click", async () => {
+        const url = linkField.value.trim();
+        if (!url) {
+          showStatus("No invitation link is available to copy.", "error");
+          return;
+        }
         try {
-          await navigator.clipboard.writeText(linkField.value);
+          await navigator.clipboard.writeText(url);
           copyButton.textContent = "Copied!";
+          showStatus("Invitation link copied successfully.", "success");
           setTimeout(() => copyButton.textContent = "Copy invitation link", 1800);
         } catch {
-          linkField.focus(); linkField.select(); document.execCommand("copy");
-          copyButton.textContent = "Copy attempted";
+          linkField.focus();
+          linkField.select();
+          const copied = document.execCommand("copy");
+          copyButton.textContent = copied ? "Copied!" : "Select link to copy";
+          showStatus(copied ? "Invitation link copied successfully." : "Select the link field and copy it manually.", copied ? "success" : "error");
         }
       });
 
@@ -1073,11 +1082,27 @@
           if (!response.ok || !result.success || !result.candidateUrl) {
             throw new Error(result.error || `Invitation creation failed (${response.status}).`);
           }
-          showStatus("Invitation created successfully. Copy the link and send it to the candidate.", "success");
-          linkField.value = result.candidateUrl; linkField.style.display = "block";
+          // Explicitly render the generated URL and make it easy to copy.
+          const generatedUrl = String(result.candidateUrl || "").trim();
+          if (!generatedUrl) throw new Error("Invitation was created, but the server did not return a link.");
+
+          linkField.value = generatedUrl;
+          linkField.setAttribute("value", generatedUrl);
+          linkField.style.display = "block";
+          linkField.style.visibility = "visible";
+          linkField.style.color = "#202238";
+          linkField.style.background = "#fff";
+          linkField.style.opacity = "1";
+          linkField.readOnly = true;
+
           copyButton.style.display = "inline-block";
+          copyButton.textContent = "Copy invitation link";
+          showStatus("Invitation created successfully. The link is shown below. Copy it and send it to the candidate.", "success");
           submit.textContent = "Create another";
           form.reset();
+          // Keep the generated link visible after resetting candidate fields.
+          linkField.value = generatedUrl;
+          linkField.setAttribute("value", generatedUrl);
         } catch (error) {
           showStatus(error.message || "Could not create invitation.", "error");
         } finally {
